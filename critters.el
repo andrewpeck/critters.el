@@ -21,11 +21,19 @@
 
 (require 'cl-lib)
 
+(eval-and-compile
+  (defconst critters--directory
+    (file-name-directory
+     (file-truename (expand-file-name "critters.el"
+                                      (file-name-directory (macroexp-file-name)))))
+    "Directory of the critters source files.
+Symlinks are followed, so when a package manager links `critters.el'
+into a separate build directory, this is where the C source and
+Makefile are."))
+
 ;; Optional dynamic module (see Makefile) that clips each critter's
 ;; frame to its sprite, removing the background box around it.
-(require 'critters-shape
-         (expand-file-name "critters-shape"
-                           (file-name-directory (macroexp-file-name)))
+(require 'critters-shape (expand-file-name "critters-shape" critters--directory)
          t)
 (declare-function critters-shape-set "critters-shape" (display window rects))
 
@@ -74,7 +82,10 @@ Only time spent animating counts, not time spent typing."
   :type 'natnum)
 
 (defcustom critters-fps 30
-  "Animation frames per second."
+  "Animation frames per second.
+The critters move at the same speed whatever this is, see
+`critters--rate'.  Fewer frames make their movement more jumpy, and
+more than `critters--rate' makes it no smoother."
   :type 'natnum)
 
 (defcustom critters-idle-delay 0.01
@@ -91,6 +102,12 @@ means they never roost."
 (defcustom critters-pause-when-unfocused t
   "Non-nil means the critters pause while their frame isn't focused.
 They always pause while it is minimized or hidden."
+  :type 'boolean)
+
+(defcustom critters-always-compile-module nil
+  "Non-nil means build the shape module without asking.
+When `critters-mode' is enabled on X11 and the module isn't loaded,
+it is built with `critters-module-compile'.  nil means ask first."
   :type 'boolean)
 
 (defcustom critters-breeds
@@ -488,18 +505,26 @@ Pixels are scaled up by `critters-scale' onto the ARGB color BG."
 (defun critters--shape-rects (pixels w)
   "Return a flat vector [X Y W H ...] of the opaque parts of PIXELS.
 The sprite is W pixels wide.  The rectangles are in screen pixels,
-for `critters-shape-set'."
+for `critters-shape-set'.  A run that is the same as one in the row
+above extends that rectangle downwards."
   (let ((s critters-scale)
-        rects)
+        rects open)
     (dotimes (y (/ (length pixels) w))
-      (let ((x 0))
+      (let ((x 0) next)
         (while (< x w)
           (if (not (aref pixels (+ x (* y w))))
               (cl-incf x)
             (let ((x0 x))
               (while (and (< x w) (aref pixels (+ x (* y w))))
                 (cl-incf x))
-              (push (vector (* x0 s) (* y s) (* (- x x0) s) s) rects))))))
+              (let* ((run (cons x0 x))
+                     (rect (cdr (assoc run open))))
+                (if rect
+                    (cl-incf (aref rect 3) s)
+                  (setq rect (vector (* x0 s) (* y s) (* (- x x0) s) s))
+                  (push rect rects))
+                (push (cons run rect) next)))))
+        (setq open next)))
     (apply #'vconcat rects)))
 
 (defun critters--build-sprites (frames palette outline bg)
@@ -518,6 +543,9 @@ PALETTE and OUTLINE are the colors to use."
                                      (critters--shape-rects left w))))))
 
 ;;;; State
+
+(defconst critters--rate 30.0
+  "Ticks per second.  Speeds and durations are all in ticks.")
 
 (defconst critters--gravity 0.6
   "Downward acceleration in pixels per tick squared.")
@@ -572,7 +600,8 @@ With `critters-shuffle' it is in the order they came out.")
 (defvar critters--window nil "Window the critters are currently in.")
 (defvar critters--surfaces-key nil)
 (defvar critters--surfaces nil)
-(defvar critters--pending 1 "Ticks of time the next tick advances by.")
+(defvar critters--pending 1
+  "Ticks of time owed, the whole ones of which the next frame advances by.")
 (defvar critters--roosting nil "Non-nil once the critters should settle down.")
 (defvar critters--ticks 0)
 
@@ -656,17 +685,26 @@ matrix is not up to date."
 
 (defun critters--surfaces (window)
   "Return the surfaces of WINDOW, recomputing them only when needed."
-  (let ((key (list window
-                   (window-start window)
-                   (window-hscroll window)
-                   (window-body-width window t)
-                   (window-body-height window t)
-                   (buffer-chars-modified-tick (window-buffer window)))))
-    (unless (equal key critters--surfaces-key)
+  ;; Compare the key in place rather than consing a new one every tick.
+  (let ((key critters--surfaces-key))
+    (unless (and key
+                 (eq (aref key 0) window)
+                 (eql (aref key 1) (window-start window))
+                 (eql (aref key 2) (window-hscroll window))
+                 (eql (aref key 3) (window-body-width window t))
+                 (eql (aref key 4) (window-body-height window t))
+                 (eql (aref key 5) (buffer-chars-modified-tick
+                                    (window-buffer window))))
       ;; Until redisplay catches up keep the old surfaces and retry.
       (let ((surfaces (critters--compute-surfaces window)))
         (when surfaces
-          (setq critters--surfaces-key key
+          (setq critters--surfaces-key
+                (vector window
+                        (window-start window)
+                        (window-hscroll window)
+                        (window-body-width window t)
+                        (window-body-height window t)
+                        (buffer-chars-modified-tick (window-buffer window)))
                 critters--surfaces surfaces))))
     critters--surfaces))
 
@@ -831,9 +869,8 @@ errors in the arc get corrected along the way."
              (critters--set-action pet action
                                    (critters--random-range (cdr pose)))))))))))
 
-(defun critters--ground-step (pet surfaces ticks)
-  "Advance grounded PET by TICKS on SURFACES.
-TICKS is more than one only while every critter is standing still."
+(defun critters--ground-step (pet surfaces)
+  "Advance grounded PET one tick on SURFACES."
   (if (not (critters--surface-at surfaces (critters--pet-x pet)
                                  (critters--pet-y pet)))
       ;; The ground vanished (scroll, edit, a window popping up or
@@ -843,7 +880,7 @@ TICKS is more than one only while every critter is standing still."
         (if below
             (setf (critters--pet-y pet) (float below))
           (setf (critters--pet-state pet) 'air)))
-    (when (<= (cl-decf (critters--pet-action-ticks pet) ticks) 0)
+    (when (<= (cl-decf (critters--pet-action-ticks pet)) 0)
       (critters--choose-action pet surfaces))
     (when (and (eq (critters--pet-state pet) 'ground)
                (eq (critters--pet-action pet) 'walk))
@@ -922,8 +959,9 @@ TICKS is more than one only while every critter is standing still."
   (let ((pair (alist-get (critters--sprite-name pet) (critters--pet-sprites pet))))
     (if (> (critters--pet-facing pet) 0) (car pair) (cdr pair))))
 
-(defun critters--render (pet)
-  "Update the canvas of PET and move its child frame."
+(defun critters--render (pet edges)
+  "Update the canvas of PET and move its child frame.
+EDGES are the `window-inside-pixel-edges' of the critters' window."
   (let ((sprite (critters--pet-sprite pet)))
     (unless (eq sprite (critters--pet-drawn pet))
       ;; The image spec has to stay the same object, so swap its data.
@@ -935,8 +973,7 @@ TICKS is more than one only while every critter is standing still."
                             (critters--pet-xid pet)
                             (cdr sprite)))
       (setf (critters--pet-drawn pet) sprite)))
-  (let* ((edges (window-inside-pixel-edges critters--window))
-         (left (+ (nth 0 edges) (round (critters--pet-x pet))
+  (let* ((left (+ (nth 0 edges) (round (critters--pet-x pet))
                   (- (/ (critters--pet-w pet) 2))))
          (top (+ (nth 1 edges) (round (critters--pet-y pet))
                  (- (critters--pet-h pet)))))
@@ -955,12 +992,11 @@ TICKS is more than one only while every critter is standing still."
           ((window-live-p critters--window) critters--window)
           (t (frame-first-window critters--parent)))))
 
-(defun critters--step-pet (pet surfaces ticks)
-  "Advance PET by TICKS on SURFACES."
-  (let ((half (/ (critters--pet-w pet) 2))
-        (width (window-body-width critters--window t)))
+(defun critters--step-pet (pet surfaces width)
+  "Advance PET one tick on SURFACES in a window WIDTH pixels wide."
+  (let ((half (/ (critters--pet-w pet) 2)))
     (if (eq (critters--pet-state pet) 'ground)
-        (critters--ground-step pet surfaces ticks)
+        (critters--ground-step pet surfaces)
       (critters--air-step pet surfaces))
     ;; Bounce off the sides of the window.
     (when (or (< (critters--pet-x pet) half)
@@ -969,26 +1005,31 @@ TICKS is more than one only while every critter is standing still."
             (float (max half (min (critters--pet-x pet) (- width half))))
             (critters--pet-vx pet) (- (critters--pet-vx pet))))
     (when (/= (critters--pet-vx pet) 0)
-      (setf (critters--pet-facing pet) (if (> (critters--pet-vx pet) 0) 1 -1)))
-    (critters--render pet)))
+      (setf (critters--pet-facing pet) (if (> (critters--pet-vx pet) 0) 1 -1)))))
 
 (defun critters--step (ticks)
-  "Advance all the critters by TICKS."
+  "Advance all the critters by TICKS, then draw them."
   (let ((win (critters--target-window)))
     (unless (eq win critters--window)
       (setq critters--window win)
       (mapc #'critters--drop-in critters--active))
     (let* ((floor (window-body-height win t))
+           (width (window-body-width win t))
+           (edges (window-inside-pixel-edges win))
            (surfaces (if (critters--bottom-p)
                          (list (list floor -1.0e+INF 1.0e+INF 'floor))
                        (critters--surfaces win))))
-      (cl-incf critters--ticks ticks)
       (dolist (pet critters--active)
         ;; If the window got shorter, don't fall out of the bottom.
         (when (> (critters--pet-y pet) floor)
           (setf (critters--pet-y pet) (float floor)
-                (critters--pet-vy pet) 0.0))
-        (critters--step-pet pet surfaces ticks)))))
+                (critters--pet-vy pet) 0.0)))
+      (dotimes (_ ticks)
+        (cl-incf critters--ticks)
+        (dolist (pet critters--active)
+          (critters--step-pet pet surfaces width)))
+      (dolist (pet critters--active)
+        (critters--render pet edges)))))
 
 (defun critters--shuffle (seconds)
   "Count SECONDS of animation towards the next turn, and take it if due.
@@ -1003,7 +1044,7 @@ queue, and the one at the front comes out on a random bit of text."
       (make-frame-invisible (critters--pet-frame leaving))
       (setq critters--queue (append critters--queue (list leaving)))
       (critters--drop-in coming)
-      (critters--render coming)
+      (critters--render coming (window-inside-pixel-edges critters--window))
       (make-frame-visible (critters--pet-frame coming))
       (setq critters--active (append critters--active (list coming))))))
 
@@ -1022,13 +1063,20 @@ Whether it's focused only counts with `critters-pause-when-unfocused'."
            (frame-focus-state critters--parent))))
 
 (defun critters--schedule ()
-  "Schedule the next tick, less often while every critter is calm."
-  (setq critters--pending (if (critters--calm-p) critters--calm-ticks 1)
-        critters--timer (run-at-time (/ critters--pending (float critters-fps))
-                                     nil #'critters--tick)))
+  "Schedule the next frame, less often while every critter is calm."
+  (let* ((frame (/ critters--rate (max 1 critters-fps)))
+         (ticks (if (critters--calm-p) (max frame critters--calm-ticks) frame)))
+    (cl-incf critters--pending ticks)
+    ;; Reuse the timer rather than making a new one every frame.
+    (unless critters--timer
+      (setq critters--timer (timer-create))
+      (timer-set-function critters--timer #'critters--tick))
+    (timer-set-time critters--timer
+                    (timer-relative-time nil (/ ticks critters--rate)))
+    (timer-activate critters--timer)))
 
 (defun critters--tick ()
-  "Timer function: advance the critters and schedule the next tick.
+  "Timer function: advance the critters and schedule the next frame.
 Stop when the frame is hidden or unfocused, when the critters have
 settled down to roost, or on errors."
   (condition-case err
@@ -1042,9 +1090,11 @@ settled down to roost, or on errors."
           (when (and critters-roost-delay idle
                      (> (float-time idle) critters-roost-delay))
             (setq critters--roosting t)))
-        (critters--step critters--pending)
-        (when critters-shuffle
-          (critters--shuffle (/ critters--pending (float critters-fps))))
+        (let ((ticks (floor critters--pending)))
+          (cl-decf critters--pending ticks)
+          (critters--step ticks)
+          (when critters-shuffle
+            (critters--shuffle (/ ticks critters--rate))))
         (cond
          ((and critters--roosting (critters--calm-p))
           (critters--sleep))
@@ -1219,6 +1269,32 @@ settled down to roost, or on errors."
         critters--queue nil))
 
 ;;;###autoload
+(defun critters-module-compile ()
+  "Build the shape module with make and load it.
+Return non-nil on success.  On failure, show the output of make."
+  (interactive)
+  (let ((default-directory critters--directory)
+        (buf (get-buffer-create "*critters-module*")))
+    (with-current-buffer buf
+      (erase-buffer))
+    (if (eq 0 (call-process "make" nil buf t))
+        (require 'critters-shape
+                 (expand-file-name "critters-shape" critters--directory))
+      (display-buffer buf)
+      (message "Building the critters-shape module failed")
+      nil)))
+
+(defun critters--maybe-compile-module ()
+  "Offer to build the shape module if it's missing on X11.
+See `critters-always-compile-module'."
+  (when (and (eq (framep (selected-frame)) 'x)
+             module-file-suffix
+             (not (featurep 'critters-shape))
+             (or critters-always-compile-module
+                 (y-or-n-p "Build the critters-shape module to remove the \
+box around critters? ")))
+    (critters-module-compile)))
+
 (define-minor-mode critters-mode
   "Toggle critters that hop around the selected window."
   :global t
@@ -1227,6 +1303,7 @@ settled down to roost, or on errors."
     (unless (display-graphic-p)
       (setq critters-mode nil)
       (user-error "Critters need a graphical frame"))
+    (critters--maybe-compile-module)
     (critters--start)))
 
 (provide 'critters)

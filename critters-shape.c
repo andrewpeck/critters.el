@@ -64,8 +64,7 @@ shape_set (emacs_env *env, ptrdiff_t nargs, emacs_value *args, void *data)
   xcb_window_t window;
   ptrdiff_t n;
   xcb_rectangle_t *rects;
-  xcb_void_cookie_t cookie;
-  xcb_generic_error_t *err;
+  xcb_generic_event_t *event;
 
   if (!ensure_connection (env, args[0]))
     return signal_error (env, "critters-shape: cannot connect to X display");
@@ -88,17 +87,15 @@ shape_set (emacs_env *env, ptrdiff_t nargs, emacs_value *args, void *data)
       return env->intern (env, "nil");
     }
 
-  cookie = xcb_shape_rectangles_checked (conn, XCB_SHAPE_SO_SET,
-                                         XCB_SHAPE_SK_BOUNDING,
-                                         XCB_CLIP_ORDERING_UNSORTED,
-                                         window, 0, 0, n, rects);
+  /* Don't wait for a reply, that would be a round trip to the X
+     server on every sprite change.  Errors come back as events on our
+     own connection instead, which are discarded.  */
+  xcb_shape_rectangles (conn, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_BOUNDING,
+                        XCB_CLIP_ORDERING_UNSORTED, window, 0, 0, n, rects);
   free (rects);
-  err = xcb_request_check (conn, cookie);
-  if (err)
-    {
-      free (err);
-      return signal_error (env, "critters-shape: X error while shaping window");
-    }
+  xcb_flush (conn);
+  while ((event = xcb_poll_for_event (conn)))
+    free (event);
   return env->intern (env, "t");
 }
 
