@@ -20,9 +20,18 @@ The critters:
 * Requirements
 
 - Emacs 32 with canvas image support (=(image-type-available-p 'canvas)=)
-- A graphical frame
+- A graphical frame with 32-bit color (see below)
 - Optional, X11 only: =libxcb=, =xcb-shape= and =pkg-config= to build
   the shape module (see below)
+
+On X11, Emacs has to be started with a 32-bit TrueColor visual:
+
+#+begin_src sh
+emacs -xrm 'Emacs.visualClass: TrueColor-32'
+#+end_src
+
+To make it permanent, put =Emacs.visualClass: TrueColor-32= in
+=~/.Xresources= and load it with =xrdb -merge ~/.Xresources=.
 
 * Setup
 
