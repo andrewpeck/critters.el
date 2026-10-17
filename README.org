@@ -103,20 +103,22 @@ shadow your changes.
 
 * Customization
 
-| Variable                        | Default | Description                                             |
-|---------------------------------+---------+---------------------------------------------------------|
-| =critters-flock=                |         | Which critters and how many; takes effect when toggling |
-| =critters-style=                |  frames | =frames= or =bottom=; takes effect when toggling        |
-| =critters-shuffle=              |     nil | Only some of the flock out at a time, taking turns      |
-| =critters-shuffle-count=        |       2 | How many are out at once when shuffling                 |
-| =critters-shuffle-interval=     |      30 | Seconds of animation between turns                      |
-| =critters-breeds=               |         | Palettes of each species, assigned in order             |
-| =critters-scale=                |       2 | Screen pixels per sprite pixel                          |
-| =critters-fps=                  |      30 | Animation frames per second                             |
-| =critters-idle-delay=           |    0.01 | Idle seconds before the critters start moving           |
-| =critters-roost-delay=          |     300 | Idle seconds before they go to sleep (nil: never)       |
-| =critters-pause-when-unfocused= |       t | Pause while Emacs isn't focused (always when minimized) |
-| =critters-web-delay=            |      60 | Seconds of animation before a spider spins a web        |
+| Variable                            | Default | Description                                             |
+|-------------------------------------+---------+---------------------------------------------------------|
+| =critters-flock=                    |         | Which critters and how many; takes effect when toggling |
+| =critters-style=                    |  frames | =frames= or =bottom=; takes effect when toggling        |
+| =critters-shuffle=                  |     nil | Only some of the flock out at a time, taking turns      |
+| =critters-shuffle-count=            |       2 | How many are out at once when shuffling                 |
+| =critters-shuffle-interval=         |      30 | Seconds of animation between turns                      |
+| =critters-shuffle-randomize=        |     nil | Take turns in a random order                            |
+| =critters-shuffle-on-buffer-switch= |     nil | Also take a turn when the window switches buffers       |
+| =critters-breeds=                   |         | Palettes of each species, assigned in order             |
+| =critters-scale=                    |       2 | Screen pixels per sprite pixel                          |
+| =critters-fps=                      |      30 | Animation frames per second                             |
+| =critters-idle-delay=               |    0.01 | Idle seconds before the critters start moving           |
+| =critters-roost-delay=              |     300 | Idle seconds before they go to sleep (nil: never)       |
+| =critters-pause-when-unfocused=     |       t | Pause while Emacs isn't focused (always when minimized) |
+| =critters-web-delay=                |      60 | Seconds of animation before a spider spins a web        |
 
 =critters-flock= is an alist of =(SPECIES . COUNT)=.  The default is
 one of each kind, with two degus:
@@ -143,9 +145,15 @@ To have fewer critters to compute but still some variety, turn on
 =critters-shuffle=: only =critters-shuffle-count= of the flock are out
 at once, and every =critters-shuffle-interval= seconds of animation the
 one that has been out the longest makes way for the next in the flock.
+With =critters-shuffle-randomize=, a random part of the flock comes out
+first, and a random one of those waiting comes out at each turn.  With
+=critters-shuffle-on-buffer-switch=, a turn is also taken whenever the
+window the critters are in switches to another buffer.
 
 #+begin_src emacs-lisp
-(setq critters-shuffle t)
+(setq critters-shuffle t
+      critters-shuffle-randomize t
+      critters-shuffle-on-buffer-switch t)
 #+end_src
 
 New species are entries in =critters--species=: a set of sprite frames

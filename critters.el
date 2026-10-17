@@ -79,6 +79,12 @@ variety while computing fewer critters.  Takes effect when
 Only time spent animating counts, not time spent typing."
   :type 'number)
 
+(defcustom critters-shuffle-on-buffer-switch nil
+  "Non-nil means `critters-shuffle' also takes a turn on buffer switches.
+When the window the critters are in shows another buffer, the next
+turn is taken right away, and the interval starts over."
+  :type 'boolean)
+
 (defcustom critters-shuffle-randomize nil
   "Non-nil means `critters-shuffle' takes turns in a random order.
 A random part of the flock comes out first, and at each turn a
@@ -1308,6 +1314,7 @@ With `critters-shuffle' it is in the order they came out.")
 (defvar critters--timer nil "Animation timer, only running while idle.")
 (defvar critters--idle-timer nil "Idle timer that wakes the critters.")
 (defvar critters--window nil "Window the critters are currently in.")
+(defvar critters--buffer nil "Buffer of `critters--window' last time.")
 (defvar critters--surfaces-key nil)
 (defvar critters--surfaces nil)
 (defvar critters--pending 1
@@ -1899,9 +1906,15 @@ EDGES are the `window-inside-pixel-edges' of the critters' window."
 (defun critters--step (ticks)
   "Advance all the critters by TICKS, then draw them."
   (let ((win (critters--target-window)))
-    (unless (eq win critters--window)
+    (cond
+     ((not (eq win critters--window))
       (setq critters--window win)
       (mapc #'critters--drop-in critters--active))
+     ((and critters-shuffle critters-shuffle-on-buffer-switch critters--queue
+           (not (eq (window-buffer win) critters--buffer)))
+      (setq critters--shuffle-time 0.0)
+      (critters--take-turn)))
+    (setq critters--buffer (window-buffer win))
     (let* ((floor (window-body-height win t))
            (width (window-body-width win t))
            (edges (window-inside-pixel-edges win))
@@ -1923,15 +1936,20 @@ EDGES are the `window-inside-pixel-edges' of the critters' window."
         (critters--render pet edges)))))
 
 (defun critters--shuffle (seconds)
-  "Count SECONDS of animation towards the next turn, and take it if due.
-The critter that has been out the longest goes to the back of the
-queue, and the one at the front comes out on a random bit of text.
-With `critters-shuffle-randomize' a random one from the queue comes
-out instead."
+  "Count SECONDS of animation towards the next turn, and take it if due."
   (when (and critters--queue
              (>= (cl-incf critters--shuffle-time seconds)
                  critters-shuffle-interval))
     (setq critters--shuffle-time 0.0)
+    (critters--take-turn)))
+
+(defun critters--take-turn ()
+  "Let the next critter waiting in the queue come out.
+The critter that has been out the longest goes to the back of the
+queue, and the one at the front comes out on a random bit of text.
+With `critters-shuffle-randomize' a random one from the queue comes
+out instead."
+  (when critters--queue
     (let ((leaving (pop critters--active))
           (coming (if critters-shuffle-randomize
                       (seq-random-elt critters--queue)
@@ -2130,6 +2148,7 @@ N is a number or name, unique to PET."
         critters--bg (critters--argb (frame-parameter critters--parent
                                                       'background-color))
         critters--window nil
+        critters--buffer nil
         critters--surfaces-key nil
         critters--ticks 0)
   (let ((n 0))
