@@ -76,8 +76,10 @@ variety while computing fewer critters.  Takes effect when
 
 (defcustom critters-shuffle-interval 30
   "Seconds between turns with `critters-shuffle'.
-Only time spent animating counts, not time spent typing."
-  :type 'number)
+Only time spent animating counts, not time spent typing.  nil means
+no turns are taken on a timer, only on buffer switches with
+`critters-shuffle-on-buffer-switch'."
+  :type '(choice (number :tag "Seconds") (const :tag "Never" nil)))
 
 (defcustom critters-shuffle-on-buffer-switch nil
   "Non-nil means `critters-shuffle' also takes a turn on buffer switches.
@@ -1938,6 +1940,7 @@ EDGES are the `window-inside-pixel-edges' of the critters' window."
 (defun critters--shuffle (seconds)
   "Count SECONDS of animation towards the next turn, and take it if due."
   (when (and critters--queue
+             critters-shuffle-interval
              (>= (cl-incf critters--shuffle-time seconds)
                  critters-shuffle-interval))
     (setq critters--shuffle-time 0.0)
