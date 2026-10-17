@@ -44,7 +44,7 @@ Makefile are."))
 (defcustom critters-flock
   '((cockroach . 1) (chicken . 1) (rooster . 1) (degu . 2) (skink . 1)
     (spider . 1) (worm . 1) (isopod . 1) (totoro . 1)
-    (umbreon . 1))
+    (umbreon . 1) (cat . 1))
   "Critters to hatch, as an alist of (SPECIES . COUNT).
 SPECIES is one of the species in `critters--species'.  Takes
 effect when `critters-mode' is enabled."
@@ -135,7 +135,8 @@ it is built with `critters-module-compile'.  nil means ask first."
     (worm (red-wiggler))
     (isopod (vulgare))
     (totoro (big))
-    (umbreon (tera)))
+    (umbreon (tera))
+    (cat (booboo)))
   "Breeds of each species, as (SPECIES (NAME . OVERRIDES)...).
 OVERRIDES map characters of the species' sprite frames to ARGB
 colors, and `outline' to the outline color.  See the palettes in
@@ -667,119 +668,212 @@ the list runs out."
 
 (defconst critters--umbreon-frames
   '((stand
-     "................W........"
-     "...............WCV......."
-     "...............WCV......."
-     "...........W.B.CCV..B..W."
-     "..BB......WPVBB.V..BB.WPV"
-     ".BBBB......V.YY....YY..V."
-     ".YYYY........BB....BB...."
-     ".BBBB.......BBBBBBBBBB..."
-     "..BBBB......BBBBBYBBBBB.."
-     "...BBBB.....BBBBBBBRBBBBB"
-     "....BBBB.....BBBBBBBBBBB."
-     ".....BBBB.....BBBBBBB...."
-     ".....BBBBBBBBBBBBBB......"
-     ".....BBBBBBBBBBBBBB......"
-     "......BSSSSSSSBBBB......."
-     "......YYSS....YYSS......."
-     "......BBSS....BBSS......."
-     "......BBSS....BBSS.......")
+     "..........................."
+     "..........................."
+     "..........................."
+     ".............B......B......"
+     "..BB.........BB....BB......"
+     ".BBBB........YY....YY......"
+     ".YYYY........BB....BB......"
+     ".BBBB.......BBBBBBBBBB....."
+     "..BBBB......BBBBBYBBBBB...."
+     "...BBBB.....BBBBBBBRBBBBB.."
+     "....BBBB.....BBBBBBBBBBB..."
+     ".....BBBB.....BBBBBBB......"
+     ".....BBBBBBBBBBBBBB........"
+     ".....BBBBBBBBBBBBBB........"
+     "......BSSSSSSSBBBB........."
+     "......YYSS....YYSS........."
+     "......BBSS....BBSS........."
+     "......BBSS....BBSS.........")
     (walk
-     "................W........"
-     "...............WCV......."
-     "...............WCV......."
-     "...........W.B.CCV..B..W."
-     "..BB......WPVBB.V..BB.WPV"
-     ".BBBB......V.YY....YY..V."
-     ".YYYY........BB....BB...."
-     ".BBBB.......BBBBBBBBBB..."
-     "..BBBB......BBBBBYBBBBB.."
-     "...BBBB.....BBBBBBBRBBBBB"
-     "....BBBB.....BBBBBBBBBBB."
-     ".....BBBB.....BBBBBBB...."
-     ".....BBBBBBBBBBBBBB......"
-     ".....BBBBBBBBBBBBBB......"
-     "......BSSSSSSSBBBB......."
-     "......YYSS....YYSS......."
-     ".....BB..SS..SS..BB......"
-     "....BB....SS.SS...BB.....")
+     "..........................."
+     "..........................."
+     "..........................."
+     ".............B......B......"
+     "..BB.........BB....BB......"
+     ".BBBB........YY....YY......"
+     ".YYYY........BB....BB......"
+     ".BBBB.......BBBBBBBBBB....."
+     "..BBBB......BBBBBYBBBBB...."
+     "...BBBB.....BBBBBBBRBBBBB.."
+     "....BBBB.....BBBBBBBBBBB..."
+     ".....BBBB.....BBBBBBB......"
+     ".....BBBBBBBBBBBBBB........"
+     ".....BBBBBBBBBBBBBB........"
+     "......BSSSSSSSBBBB........."
+     "......YYSS....YYSS........."
+     ".....BB..SS..SS..BB........"
+     "....BB....SS.SS...BB.......")
     (blink
-     "................W........"
-     "...............WCV......."
-     "...............WCV......."
-     "...........W.B.CCV..B..W."
-     "..BB......WPVBB.V..BB.WPV"
-     ".BBBB......V.YY....YY..V."
-     ".YYYY........BB....BB...."
-     ".BBBB.......BBBBBBBBBB..."
-     "..BBBB......BBBBBYBBBBB.."
-     "...BBBB.....BBBBBBBBBBBBB"
-     "....BBBB.....BBBBBBBBBBB."
-     ".....BBBB.....BBBBBBB...."
-     ".....BBBBBBBBBBBBBB......"
-     ".....BBBBBBBBBBBBBB......"
-     "......BSSSSSSSBBBB......."
-     "......YYSS....YYSS......."
-     "......BBSS....BBSS......."
-     "......BBSS....BBSS.......")
+     "..........................."
+     "..........................."
+     "..........................."
+     ".............B......B......"
+     "..BB.........BB....BB......"
+     ".BBBB........YY....YY......"
+     ".YYYY........BB....BB......"
+     ".BBBB.......BBBBBBBBBB....."
+     "..BBBB......BBBBBYBBBBB...."
+     "...BBBB.....BBBBBBBBBBBBB.."
+     "....BBBB.....BBBBBBBBBBB..."
+     ".....BBBB.....BBBBBBB......"
+     ".....BBBBBBBBBBBBBB........"
+     ".....BBBBBBBBBBBBBB........"
+     "......BSSSSSSSBBBB........."
+     "......YYSS....YYSS........."
+     "......BBSS....BBSS........."
+     "......BBSS....BBSS.........")
     (glow
-     "................W........"
-     "...............WCV......."
-     "...............WCV......."
-     "...........W.B.CCV..B..W."
-     "..BB......WPVBB.V..BB.WPV"
-     ".BBBB......V.GG....GG..V."
-     ".GGGG........BB....BB...."
-     ".BBBB.......BBBBBBBBBB..."
-     "..BBBB......BBBBBGBBBBB.."
-     "...BBBB.....BBBBBBBRBBBBB"
-     "....BBBB.....BBBBBBBBBBB."
-     ".....BBBB.....BBBBBBB...."
-     ".....BBBBBBBBBBBBBB......"
-     ".....BBBBBBBBBBBBBB......"
-     "......BSSSSSSSBBBB......."
-     "......GGSS....GGSS......."
-     "......BBSS....BBSS......."
-     "......BBSS....BBSS.......")
+     "..........................."
+     "..........................."
+     "..........................."
+     ".............B......B......"
+     "..BB.........BB....BB......"
+     ".BBBB........GG....GG......"
+     ".GGGG........BB....BB......"
+     ".BBBB.......BBBBBBBBBB....."
+     "..BBBB......BBBBBGBBBBB...."
+     "...BBBB.....BBBBBBBRBBBBB.."
+     "....BBBB.....BBBBBBBBBBB..."
+     ".....BBBB.....BBBBBBB......"
+     ".....BBBBBBBBBBBBBB........"
+     ".....BBBBBBBBBBBBBB........"
+     "......BSSSSSSSBBBB........."
+     "......GGSS....GGSS........."
+     "......BBSS....BBSS........."
+     "......BBSS....BBSS.........")
     (sit
-     "................W........"
-     "...............WCV......."
-     "...............WCV......."
-     "...........W.B.CCV..B..W."
-     "..........WPVBB.V..BB.WPV"
-     "...........V.YY....YY..V."
-     ".............BB....BB...."
-     "............BBBBBBBBBB..."
-     "............BBBBBYBBBBB.."
-     "............BBBBBBBRBBBBB"
-     ".............BBBBBBBBBBB."
-     "..............BBBBBBB...."
-     "............BBBBBBBB....."
-     "...........BBBBBBBBB....."
-     "..........BBBBBBBBBB....."
-     ".........BBBYYBBBSBB....."
-     "BBYYBBBBBBBBBBBBBSYY....."
-     ".BBBBBBBBBBBBBBBBSBB.....")
+     "..........................."
+     "..........................."
+     "..........................."
+     ".............B......B......"
+     ".............BB....BB......"
+     ".............YY....YY......"
+     ".............BB....BB......"
+     "............BBBBBBBBBB....."
+     "............BBBBBYBBBBB...."
+     "............BBBBBBBRBBBBB.."
+     ".............BBBBBBBBBBB..."
+     "..............BBBBBBB......"
+     "............BBBBBBBB......."
+     "...........BBBBBBBBB......."
+     "..........BBBBBBBBBB......."
+     ".........BBBYYBBBSBB......."
+     "BBYYBBBBBBBBBBBBBSYY......."
+     ".BBBBBBBBBBBBBBBBSBB.......")
     (curl
-     "........................."
-     "........................."
-     "........................."
-     "........................."
-     "........................."
-     "........................."
-     "........................."
-     "........................."
-     ".................W......."
-     "................WCV......"
-     "................WCV......"
-     ".............W..CCV...W.."
-     "............WPV..V...WPV."
-     ".............V.B....B.V.."
-     "...............YY..YY...."
-     ".....BBBBBBBBBBBBBBBBB..."
-     "...YYBBBBSSSSSBBBBYBBBB.."
-     "....BBBBBBBBBBBBBBBBBB...")))
+     "..........................."
+     "..........................."
+     "..........................."
+     "..........................."
+     "..........................."
+     "..........................."
+     "..........................."
+     "..........................."
+     "..........................."
+     "..........................."
+     "..........................."
+     "..........................."
+     "..........................."
+     "...............B....B......"
+     "...............YY..YY......"
+     ".....BBBBBBBBBBBBBBBBB....."
+     "...YYBBBBSSSSSBBBBYBBBB...."
+     "....BBBBBBBBBBBBBBBBBB.....")))
+
+(defconst critters--cat-frames
+  '((stand
+     "..............K...K.."
+     "..............KK.KK.."
+     ".KK...........KKKKKK."
+     "KKK..........KKMMEMWW"
+     "KOK..........KMMMMWWN"
+     ".KOO.........WWWWWWW."
+     "..KKKKOKKKKOOOWWWW..."
+     "..KKKKOOKKKKOOOWWW..."
+     "..WWKKOOKKKKDOOWWW..."
+     "...WWWWWWWWWWWWWW...."
+     "...WWFF.....OOGG....."
+     "...WWFF.....WWFF.....")
+    (walk
+     "..............K...K.."
+     "..............KK.KK.."
+     ".KK...........KKKKKK."
+     "KKK..........KKMMEMWW"
+     "KOK..........KMMMMWWN"
+     ".KOO.........WWWWWWW."
+     "..KKKKOKKKKOOOWWWW..."
+     "..KKKKOOKKKKOOOWWW..."
+     "..WWKKOOKKKKDOOWWW..."
+     "...WWWWWWWWWWWWWW...."
+     "...WWFF.....OOGG....."
+     "..WW..FF..FF..WW.....")
+    (blink
+     "..............K...K.."
+     "..............KK.KK.."
+     ".KK...........KKKKKK."
+     "KKK..........KKMMKMWW"
+     "KOK..........KMMMMWWN"
+     ".KOO.........WWWWWWW."
+     "..KKKKOKKKKOOOWWWW..."
+     "..KKKKOOKKKKOOOWWW..."
+     "..WWKKOOKKKKDOOWWW..."
+     "...WWWWWWWWWWWWWW...."
+     "...WWFF.....OOGG....."
+     "...WWFF.....WWFF.....")
+    (sit
+     "..............K...K.."
+     "..............KK.KK.."
+     "..............KKKKKK."
+     ".............KKMMEMWW"
+     ".............KMMMMWWN"
+     ".............WWWWWWW."
+     "............KWWWWW..."
+     "..........KKOOWWWW..."
+     ".........KKKOOOWWW..."
+     "........KKKKDOOGOO..."
+     ".......WKKKKOOWGOO..."
+     "..KKKOWWWWWWWWWFWW...")
+    (groom
+     "....................."
+     "..............K...K.."
+     "..............KK.KK.."
+     "..............KKKKKK."
+     ".............KKMMKMWW"
+     ".............KMMMMWWN"
+     "............KWWWWWNW."
+     "..........KKOOWWWOOW."
+     ".........KKKOOOWWOO.."
+     "........KKKKDOOGO...."
+     ".......WKKKKOOWGO...."
+     "..KKKOWWWWWWWWWFW....")
+    (stretch
+     "....................."
+     "....................."
+     ".K..................."
+     ".KK.................."
+     "..OKKK..............."
+     "..KKKKOK............."
+     ".WWKKKKOKK..........."
+     ".WWF.KKOKKOO...K...K."
+     ".WWF...KKOOOO..KK.KK."
+     ".WWF.....WWOOOKKKKKK."
+     ".WWF......WWWOKMMEMWW"
+     ".WWF....OOOOWWWWMMWWN")
+    (loaf
+     "....................."
+     "....................."
+     "....................."
+     "....................."
+     "....................."
+     "..............K...K.."
+     "..............KK.KK.."
+     "......KKOKKKOOKKKKKK."
+     "....KKKOOKKKOKKMMKMWW"
+     "....WKKKOOKKKOKMMMWWN"
+     "..KKWWWWWWWWWWWWWWW.."
+     "..KOWWWWWWWWWWOOOWW..")))
 
 (defconst critters--species
   `((chicken
@@ -910,8 +1004,30 @@ the list runs out."
      :outline #xFF5A6074
      :jump 4 :walk (1.4 . 2.4) :walk-ticks (15 . 60) :step-ticks 3
      :edge-turn 80 :sleep curl
+     :orbit (:gems ((".W." "WCV" ".V.") (".W." "WPV" ".V.")
+                    (".W." "WCV" ".V.") (".W." "WPV" ".V."))
+             :radius (8 . 2) :steps 12 :ticks 6
+             :centers ((stand 17 . 7) (walk 17 . 7) (blink 17 . 7)
+                       (glow 17 . 7) (sit 17 . 7) (curl 18 . 13)))
      :actions ((idle . 3) (walk . 4) (jump . 3) (glow . 1) (sit . 2))
-     :poses ((glow glow 20 . 45) (sit sit 40 . 120))))
+     :poses ((glow glow 20 . 45) (sit sit 40 . 120)))
+    (cat
+     :frames ,critters--cat-frames
+     :palette ((?W . #xFFF6F2EA)        ; White fur.
+               (?O . #xFFD08C4E)        ; Ginger patches.
+               (?D . #xFFA8642E)        ; Ginger stripes.
+               (?K . #xFF221E1C)        ; Black patches.
+               (?M . #xFF7A6656)        ; Face mottling.
+               (?F . #xFFD6D0C4)        ; Far legs, white.
+               (?G . #xFFB07440)        ; Far legs, ginger.
+               (?E . #xFF9CB84A)        ; Eye.
+               (?N . #xFFE79AA0))       ; Nose and tongue.
+     :jump 4 :walk (1.0 . 2.0) :walk-ticks (20 . 80) :step-ticks 4
+     :edge-turn 85 :sleep loaf
+     :actions ((idle . 3) (walk . 3) (jump . 3) (sit . 2) (groom . 2)
+               (stretch . 1))
+     :poses ((sit sit 40 . 150) (groom groom 40 . 90)
+             (stretch stretch 20 . 40))))
   "Species of critter, as (NAME . PLIST).
 PLIST has these properties:
 
@@ -933,6 +1049,16 @@ PLIST has these properties:
  :web         Non-nil to spin a web now and then, see
               `critters-web-delay'.
  :sleep       Frame to show while roosting, `blink' by default.
+ :orbit       Plist of gems circling the critter's head:
+                :gems     List of gems, each rows of palette
+                          characters like a frame.
+                :radius   (X . Y) radii of the ring in sprite pixels.
+                :steps    Steps of a full turn.
+                :ticks    Ticks per step.
+                :centers  Alist of (FRAME X . Y), the middle of the
+                          ring in each frame.  Frames without one
+                          have no gems.
+              Gems on the far side of the ring go behind the critter.
  :actions     Alist of (ACTION . WEIGHT): `idle', `walk', `jump',
               `web' (go back to its web), or a pose.
  :poses       List of (ACTION FRAME MIN . MAX): standing still showing
@@ -1054,20 +1180,60 @@ above extends that rectangle downwards."
         (setq open next)))
     (apply #'vconcat rects)))
 
-(defun critters--build-sprites (frames palette outline bg)
+(defun critters--orbit-rows (rows orbit center step)
+  "Return ROWS with the gems of ORBIT circling CENTER, at STEP of a turn.
+See `:orbit' in `critters--species'.  Gems on the far side of the
+ring only go where ROWS are transparent, so they pass behind."
+  (let* ((rows (mapcar #'copy-sequence rows))
+         (gems (plist-get orbit :gems))
+         (n (length gems))
+         (turn (/ step (float (plist-get orbit :steps))))
+         (placed (cl-loop
+                  for gem in gems for i from 0
+                  for a = (/ (* 2 float-pi (+ i turn)) n)
+                  collect (list (> (sin a) 0)
+                                (+ (car center)
+                                   (round (* (car (plist-get orbit :radius)) (cos a))))
+                                (+ (cdr center)
+                                   (round (* (cdr (plist-get orbit :radius)) (sin a))))
+                                gem))))
+    (dolist (front '(nil t) rows)
+      (pcase-dolist (`(,near ,x ,y ,gem) placed)
+        (when (eq near front)
+          (cl-loop
+           for line in gem for gy from (- y (/ (length gem) 2)) do
+           (cl-loop for c across line for gx from (- x (/ (length line) 2))
+                    when (and (/= c ?.)
+                              (< -1 gy (length rows))
+                              (< -1 gx (length (car rows)))
+                              (or front (= (aref (nth gy rows) gx) ?.)))
+                    do (aset (nth gy rows) gx c))))))))
+
+(defun critters--build-sprites (frames palette outline bg &optional orbit)
   "Return an alist mapping the names of FRAMES to (RIGHT . LEFT).
 RIGHT and LEFT are the sprite facing each way as (DATA . RECTS) on
 background BG, see `critters--canvas-data' and `critters--shape-rects'.
-PALETTE and OUTLINE are the colors to use."
-  (cl-loop for (name . rows) in frames
-           for w = (length (car rows))
-           for right = (critters--compile rows palette outline)
-           for left = (critters--mirror right w)
-           collect (cons name
-                         (cons (cons (critters--canvas-data right w bg)
-                                     (critters--shape-rects right w))
-                               (cons (critters--canvas-data left w bg)
-                                     (critters--shape-rects left w))))))
+PALETTE and OUTLINE are the colors to use.  With ORBIT, frames that
+have gems circling map instead to a vector of such pairs, one per
+step of a turn, see `critters--orbit-rows'."
+  (cl-flet ((sprite (rows)
+              (let* ((w (length (car rows)))
+                     (right (critters--compile rows palette outline))
+                     (left (critters--mirror right w)))
+                (cons (cons (critters--canvas-data right w bg)
+                            (critters--shape-rects right w))
+                      (cons (critters--canvas-data left w bg)
+                            (critters--shape-rects left w))))))
+    (cl-loop for (name . rows) in frames
+             for center = (alist-get name (plist-get orbit :centers))
+             collect (cons name
+                           (if (not center)
+                               (sprite rows)
+                             (vconcat
+                              (cl-loop for step below (plist-get orbit :steps)
+                                       collect (sprite (critters--orbit-rows
+                                                        rows orbit center
+                                                        step)))))))))
 
 ;;;; State
 
@@ -1660,6 +1826,11 @@ has been without for `critters-web-delay' seconds, if it can."
 (defun critters--pet-sprite (pet)
   "Return the sprite (DATA . RECTS) to show for PET."
   (let ((pair (alist-get (critters--sprite-name pet) (critters--pet-sprites pet))))
+    (when (vectorp pair)
+      ;; Gems circling, one sprite per step of their turn.
+      (setq pair (aref pair (% (/ (+ critters--ticks (critters--pet-phase pet))
+                                  (plist-get (critters--pet-get pet :orbit) :ticks))
+                               (length pair)))))
     (if (> (critters--pet-facing pet) 0) (car pair) (cdr pair))))
 
 (defun critters--render (pet edges)
@@ -1825,7 +1996,8 @@ settled down to roost, or on errors."
                          (alist-get 'outline overrides
                                     (or (plist-get kind :outline)
                                         critters--outline))
-                         critters--bg)
+                         critters--bg
+                         (plist-get kind :orbit))
                :w (* critters-scale (length (cadr (car frames))))
                :h (* critters-scale (length (cdr (car frames))))
                :phase (random 90))))
