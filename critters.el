@@ -43,7 +43,8 @@ Makefile are."))
 
 (defcustom critters-flock
   '((cockroach . 1) (chicken . 1) (rooster . 1) (degu . 2) (skink . 1)
-    (spider . 1) (worm . 1) (isopod . 1) (totoro . 1))
+    (spider . 1) (worm . 1) (isopod . 1) (totoro . 1)
+    (umbreon . 1))
   "Critters to hatch, as an alist of (SPECIES . COUNT).
 SPECIES is one of the species in `critters--species'.  Takes
 effect when `critters-mode' is enabled."
@@ -133,7 +134,8 @@ it is built with `critters-module-compile'.  nil means ask first."
     (cockroach (madagascar))
     (worm (red-wiggler))
     (isopod (vulgare))
-    (totoro (big)))
+    (totoro (big))
+    (umbreon (tera)))
   "Breeds of each species, as (SPECIES (NAME . OVERRIDES)...).
 OVERRIDES map characters of the species' sprite frames to ARGB
 colors, and `outline' to the outline color.  See the palettes in
@@ -663,6 +665,122 @@ the list runs out."
      ".GGCWCWCWCWCWCGG."
      "...GGGG...GGGG...")))
 
+(defconst critters--umbreon-frames
+  '((stand
+     "................W........"
+     "...............WCV......."
+     "...............WCV......."
+     "...........W.B.CCV..B..W."
+     "..BB......WPVBB.V..BB.WPV"
+     ".BBBB......V.YY....YY..V."
+     ".YYYY........BB....BB...."
+     ".BBBB.......BBBBBBBBBB..."
+     "..BBBB......BBBBBYBBBBB.."
+     "...BBBB.....BBBBBBBRBBBBB"
+     "....BBBB.....BBBBBBBBBBB."
+     ".....BBBB.....BBBBBBB...."
+     ".....BBBBBBBBBBBBBB......"
+     ".....BBBBBBBBBBBBBB......"
+     "......BSSSSSSSBBBB......."
+     "......YYSS....YYSS......."
+     "......BBSS....BBSS......."
+     "......BBSS....BBSS.......")
+    (walk
+     "................W........"
+     "...............WCV......."
+     "...............WCV......."
+     "...........W.B.CCV..B..W."
+     "..BB......WPVBB.V..BB.WPV"
+     ".BBBB......V.YY....YY..V."
+     ".YYYY........BB....BB...."
+     ".BBBB.......BBBBBBBBBB..."
+     "..BBBB......BBBBBYBBBBB.."
+     "...BBBB.....BBBBBBBRBBBBB"
+     "....BBBB.....BBBBBBBBBBB."
+     ".....BBBB.....BBBBBBB...."
+     ".....BBBBBBBBBBBBBB......"
+     ".....BBBBBBBBBBBBBB......"
+     "......BSSSSSSSBBBB......."
+     "......YYSS....YYSS......."
+     ".....BB..SS..SS..BB......"
+     "....BB....SS.SS...BB.....")
+    (blink
+     "................W........"
+     "...............WCV......."
+     "...............WCV......."
+     "...........W.B.CCV..B..W."
+     "..BB......WPVBB.V..BB.WPV"
+     ".BBBB......V.YY....YY..V."
+     ".YYYY........BB....BB...."
+     ".BBBB.......BBBBBBBBBB..."
+     "..BBBB......BBBBBYBBBBB.."
+     "...BBBB.....BBBBBBBBBBBBB"
+     "....BBBB.....BBBBBBBBBBB."
+     ".....BBBB.....BBBBBBB...."
+     ".....BBBBBBBBBBBBBB......"
+     ".....BBBBBBBBBBBBBB......"
+     "......BSSSSSSSBBBB......."
+     "......YYSS....YYSS......."
+     "......BBSS....BBSS......."
+     "......BBSS....BBSS.......")
+    (glow
+     "................W........"
+     "...............WCV......."
+     "...............WCV......."
+     "...........W.B.CCV..B..W."
+     "..BB......WPVBB.V..BB.WPV"
+     ".BBBB......V.GG....GG..V."
+     ".GGGG........BB....BB...."
+     ".BBBB.......BBBBBBBBBB..."
+     "..BBBB......BBBBBGBBBBB.."
+     "...BBBB.....BBBBBBBRBBBBB"
+     "....BBBB.....BBBBBBBBBBB."
+     ".....BBBB.....BBBBBBB...."
+     ".....BBBBBBBBBBBBBB......"
+     ".....BBBBBBBBBBBBBB......"
+     "......BSSSSSSSBBBB......."
+     "......GGSS....GGSS......."
+     "......BBSS....BBSS......."
+     "......BBSS....BBSS.......")
+    (sit
+     "................W........"
+     "...............WCV......."
+     "...............WCV......."
+     "...........W.B.CCV..B..W."
+     "..........WPVBB.V..BB.WPV"
+     "...........V.YY....YY..V."
+     ".............BB....BB...."
+     "............BBBBBBBBBB..."
+     "............BBBBBYBBBBB.."
+     "............BBBBBBBRBBBBB"
+     ".............BBBBBBBBBBB."
+     "..............BBBBBBB...."
+     "............BBBBBBBB....."
+     "...........BBBBBBBBB....."
+     "..........BBBBBBBBBB....."
+     ".........BBBYYBBBSBB....."
+     "BBYYBBBBBBBBBBBBBSYY....."
+     ".BBBBBBBBBBBBBBBBSBB.....")
+    (curl
+     "........................."
+     "........................."
+     "........................."
+     "........................."
+     "........................."
+     "........................."
+     "........................."
+     "........................."
+     ".................W......."
+     "................WCV......"
+     "................WCV......"
+     ".............W..CCV...W.."
+     "............WPV..V...WPV."
+     ".............V.B....B.V.."
+     "...............YY..YY...."
+     ".....BBBBBBBBBBBBBBBBB..."
+     "...YYBBBBSSSSSBBBBYBBBB.."
+     "....BBBBBBBBBBBBBBBBBB...")))
+
 (defconst critters--species
   `((chicken
      :frames ,critters--chicken-frames
@@ -777,7 +895,23 @@ the list runs out."
      :fly t :jump 5 :walk (0.6 . 1.2) :walk-ticks (30 . 90) :step-ticks 6
      :edge-turn 85
      :actions ((idle . 4) (walk . 3) (jump . 2) (roar . 1) (leaf . 1))
-     :poses ((roar roar 15 . 30) (leaf leaf 60 . 150))))
+     :poses ((roar roar 15 . 30) (leaf leaf 60 . 150)))
+    (umbreon
+     :frames ,critters--umbreon-frames
+     :palette ((?B . #xFF1C2030)        ; Body.
+               (?S . #xFF3A4156)        ; Belly and far legs.
+               (?Y . #xFFE0B428)        ; Rings.
+               (?G . #xFFFFF4A0)        ; Glowing rings.
+               (?R . #xFFD8202A)        ; Eye.
+               (?W . #xFFFFFFFF)        ; Gem highlights.
+               (?C . #xFF8EE8FF)        ; Cyan gems.
+               (?P . #xFFF29CFF)        ; Pink gems.
+               (?V . #xFF9A7CFF))       ; Gem shadows.
+     :outline #xFF5A6074
+     :jump 4 :walk (1.4 . 2.4) :walk-ticks (15 . 60) :step-ticks 3
+     :edge-turn 80 :sleep curl
+     :actions ((idle . 3) (walk . 4) (jump . 3) (glow . 1) (sit . 2))
+     :poses ((glow glow 20 . 45) (sit sit 40 . 120))))
   "Species of critter, as (NAME . PLIST).
 PLIST has these properties:
 
@@ -798,6 +932,7 @@ PLIST has these properties:
  :edge-turn   Percent chance of turning around at the end of text.
  :web         Non-nil to spin a web now and then, see
               `critters-web-delay'.
+ :sleep       Frame to show while roosting, `blink' by default.
  :actions     Alist of (ACTION . WEIGHT): `idle', `walk', `jump',
               `web' (go back to its web), or a pose.
  :poses       List of (ACTION FRAME MIN . MAX): standing still showing
@@ -1516,7 +1651,7 @@ has been without for `critters-web-delay' seconds, if it can."
      ((eq action 'walk)
       (if (cl-oddp (/ ticks (critters--pet-get pet :step-ticks))) 'walk 'stand))
      ;; Asleep.
-     (critters--roosting 'blink)
+     (critters--roosting (or (critters--pet-get pet :sleep) 'blink))
      ((assq action (critters--pet-get pet :poses))
       (car (alist-get action (critters--pet-get pet :poses))))
      ((< (% ticks 90) critters--calm-ticks) 'blink)
