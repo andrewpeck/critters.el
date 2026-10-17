@@ -16,6 +16,15 @@ The critters:
 - *Degus* scurry, do small hops, and sit up on their hind legs.
 - *Blue tongue skinks* plod along slowly, flick their tongues and bask.
   They never jump, only drop off ledges.
+- *Black widows* scurry fast, make small jumps, and rear up.
+- *Madagascar hissing cockroaches* trundle along and raise
+  themselves up to hiss.  They never jump.
+- *Red wiggler worms* inch along very slowly and curl up.  They
+  never jump.
+- *Pill bugs* (/Armadillidium vulgare/) trundle along and roll up
+  into a ball.  They never jump.
+- *Totoro* lumbers along, jumps up to five lines, roars, and holds a
+  leaf over his head, which he also floats down with.
 
 * Requirements
 
@@ -105,7 +114,9 @@ shadow your changes.
 one of each kind, with two degus:
 
 #+begin_src emacs-lisp
-(setq critters-flock '((chicken . 1) (rooster . 1) (degu . 2) (skink . 1)))
+(setq critters-flock '((chicken . 1) (rooster . 1) (degu . 2) (skink . 1)
+                       (spider . 1) (cockroach . 1) (worm . 1) (isopod . 1)
+                       (totoro . 1)))
 #+end_src
 
 =critters-breeds= maps each species to a list of =(NAME . OVERRIDES)=.

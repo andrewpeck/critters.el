@@ -42,7 +42,8 @@ Makefile are."))
   :group 'games)
 
 (defcustom critters-flock
-  '((chicken . 1) (rooster . 1) (degu . 2) (skink . 1))
+  '((cockroach . 1) (chicken . 1) (rooster . 1) (degu . 2) (skink . 1)
+    (spider . 1) (worm . 1) (isopod . 1) (totoro . 1))
   "Critters to hatch, as an alist of (SPECIES . COUNT).
 SPECIES is one of the species in `critters--species'.  Takes
 effect when `critters-mode' is enabled."
@@ -120,7 +121,12 @@ it is built with `critters-module-compile'.  nil means ask first."
      (buff (?W . #xFFE9BE73) (?G . #xFFC99442)))
     (rooster (junior))
     (degu (agouti))
-    (skink (blue-tongue)))
+    (skink (blue-tongue))
+    (spider (black-widow))
+    (cockroach (madagascar))
+    (worm (red-wiggler))
+    (isopod (vulgare))
+    (totoro (big)))
   "Breeds of each species, as (SPECIES (NAME . OVERRIDES)...).
 OVERRIDES map characters of the species' sprite frames to ARGB
 colors, and `outline' to the outline color.  See the palettes in
@@ -371,6 +377,285 @@ the list runs out."
      "....SSXXSSXXSSXXSSXXSSHHH..T"
      "..........XX......XX........")))
 
+(defconst critters--spider-frames
+  '((stand
+     "..LLL...........LLL..."
+     ".L...L.BBBB....L...L.."
+     "L....BBBBBBB..L.....L."
+     "L...BBSSBBBBB.L.....L."
+     "L...BBSBBBBBB.L......L"
+     "L...BBBBBBBBBCCL.....L"
+     "L....BBBBBBBCCCCL....L"
+     "L.....BBHHBBL...L....L"
+     "L..........L.....L...L")
+    (walk
+     "..LLL...........LLL..."
+     ".L...L.BBBB....L...L.."
+     "L....BBBBBBB..L.....L."
+     "L...BBSSBBBBB.L.....L."
+     "L...BBSBBBBBB.L......L"
+     "L...BBBBBBBBBCCL.....L"
+     "L....BBBBBBBCCCCL....L"
+     "L.....BBHHBB.L..L....L"
+     "L............L...L...L")
+    (blink
+     "..LLL...........LLL..."
+     ".L...L.BBBB....L...L.."
+     "L....BBBBBBB..L.....L."
+     "L...BBSSBBBBB.L.....L."
+     "L...BBSBBBBBB.L......L"
+     "L...BBBBBBBBBCCL.....L"
+     "L....BBBBBBBCCCCL....L"
+     "L.....BBHHBBL...L....L"
+     "L..........L.....L...L")
+    (rear
+     "..LLL............LL..."
+     ".L...L.BBBB.....L..L.."
+     "L....BBBBBBB...L....L."
+     "L...BBSSBBBB..L......L"
+     "L...BBSBBBBB.L........"
+     "L...BBBBBBBBCCL......."
+     "L....BBBBBBBCCCCL....."
+     "L.....BBHHBBL...L....."
+     "L..........L.....L....")))
+
+(defconst critters--cockroach-frames
+  '((stand
+     "......................"
+     "......................"
+     "...................AA."
+     "..BDBBDBBDBBDBBDBH...A"
+     ".BSDSSDSSDSSDSSDSHH..."
+     "BBBDBBDBBDBBDBBDBHHH.."
+     ".BBDBBDBBDBBDBBDBHH..."
+     "...L.L...L.L...L.L....")
+    (walk
+     "......................"
+     "......................"
+     "...................AA."
+     "..BDBBDBBDBBDBBDBH...A"
+     ".BSDSSDSSDSSDSSDSHH..."
+     "BBBDBBDBBDBBDBBDBHHH.."
+     ".BBDBBDBBDBBDBBDBHH..."
+     "....L.L...L.L...L.L...")
+    (blink
+     "......................"
+     "......................"
+     "...................AA."
+     "..BDBBDBBDBBDBBDBH...A"
+     ".BSDSSDSSDSSDSSDSHH..."
+     "BBBDBBDBBDBBDBBDBHHH.."
+     ".BBDBBDBBDBBDBBDBHH..."
+     "...L.L...L.L...L.L....")
+    (hiss
+     "...................AA."
+     "..BDBBDBBDBBDBBDBH...A"
+     ".BSDSSDSSDSSDSSDSHH..."
+     "BBBDBBDBBDBBDBBDBHHH.."
+     ".BBDBBDBBDBBDBBDBHH..."
+     "...L.L...L.L...L.L...."
+     "...L.L...L.L...L.L...."
+     "..L...L.L...L.L...L...")))
+
+(defconst critters--worm-frames
+  '((stand
+     "......................"
+     "......................"
+     "......................"
+     ".RRDRRDRRDRRCCCRRDRRR."
+     "RRDRRDRRDRRDCCCDRRDRRR")
+    (walk
+     "......................"
+     "........DRRD.........."
+     ".......R....R........."
+     "RRDRRDR......RCCCRDRR."
+     "RDRRDR........CCCDRRRR")
+    (blink
+     "......................"
+     "......................"
+     "......................"
+     ".RRDRRDRRDRRCCCRRDRRR."
+     "RRDRRDRRDRRDCCCDRRDRRR")
+    (curl
+     "......................"
+     "......RDRR............"
+     ".....R....D..........."
+     ".....D.RR.R..........."
+     "......RRDCCCRRDRR.....")))
+
+(defconst critters--isopod-frames
+  '((stand
+     "................"
+     "....SDSSDSS....."
+     "..DSSDSSDSSDS..A"
+     ".BDBBDBBDBBDB.A."
+     "BBDBBDBBDBBDBHA."
+     "BBDBBDBBDBBDBHH."
+     "BBDBBDBBDBBDBH.."
+     ".L.L.L.L.L.L.L..")
+    (walk
+     "................"
+     "....SDSSDSS....."
+     "..DSSDSSDSSDS..A"
+     ".BDBBDBBDBBDB.A."
+     "BBDBBDBBDBBDBHA."
+     "BBDBBDBBDBBDBHH."
+     "BBDBBDBBDBBDBH.."
+     "L.L.L.L.L.L.L.L.")
+    (blink
+     "................"
+     "....SDSSDSS....."
+     "..DSSDSSDSSDS..A"
+     ".BDBBDBBDBBDB.A."
+     "BBDBBDBBDBBDBHA."
+     "BBDBBDBBDBBDBHH."
+     "BBDBBDBBDBBDBH.."
+     ".L.L.L.L.L.L.L..")
+    (roll
+     "................"
+     ".....DSSDS......"
+     "....SDSSDSS....."
+     "...BBDBBDBBD...."
+     "...BBDBBDBBD...."
+     "...BBDBBDBBD...."
+     "....BDBBDBB....."
+     ".....DBBDB......")))
+
+(defconst critters--totoro-frames
+  '((stand
+     "................."
+     "................."
+     "................."
+     "................."
+     "...D.........D..."
+     "...GG.......GG..."
+     "...GGG.....GGG..."
+     "..GGGGGGGGGGGGG.."
+     "..GEEGGNNNGGEEG.."
+     ".GGEKGGGGGGGKEGG."
+     ".GGGGGGGGGGGGGGG."
+     "GGGGGWWWWWWWGGGGG"
+     "GGGGWWCWWWCWWGGGG"
+     "GGGWWCWCWCWCWWGGG"
+     "GGGWWWWWWWWWWWGGG"
+     "GGWWCWWWCWWWCWWGG"
+     ".GGCWCWCWCWCWCGG."
+     "..GGGG.....GGGG..")
+    (walk
+     "................."
+     "................."
+     "................."
+     "................."
+     "...D.........D..."
+     "...GG.......GG..."
+     "...GGG.....GGG..."
+     "..GGGGGGGGGGGGG.."
+     "..GEEGGNNNGGEEG.."
+     ".GGEKGGGGGGGKEGG."
+     ".GGGGGGGGGGGGGGG."
+     "GGGGGWWWWWWWGGGGG"
+     "GGGGWWCWWWCWWGGGG"
+     "GGGWWCWCWCWCWWGGG"
+     "GGGWWWWWWWWWWWGGG"
+     "GGWWCWWWCWWWCWWGG"
+     ".GGCWCWCWCWCWCGG."
+     "...GGGG...GGGG...")
+    (blink
+     "................."
+     "................."
+     "................."
+     "................."
+     "...D.........D..."
+     "...GG.......GG..."
+     "...GGG.....GGG..."
+     "..GGGGGGGGGGGGG.."
+     "..GGGGGNNNGGGGG.."
+     ".GGDDGGGGGGGDDGG."
+     ".GGGGGGGGGGGGGGG."
+     "GGGGGWWWWWWWGGGGG"
+     "GGGGWWCWWWCWWGGGG"
+     "GGGWWCWCWCWCWWGGG"
+     "GGGWWWWWWWWWWWGGG"
+     "GGWWCWWWCWWWCWWGG"
+     ".GGCWCWCWCWCWCGG."
+     "..GGGG.....GGGG..")
+    (roar
+     "................."
+     "................."
+     "................."
+     "................."
+     "...D.........D..."
+     "...GG.......GG..."
+     "...GGG.....GGG..."
+     "..GGGGGGGGGGGGG.."
+     "..GEEGGNNNGGEEG.."
+     ".GGEKGGGGGGGKEGG."
+     ".GGMTMMMMMMMTMGG."
+     "GGGGMMMMMMMMMGGGG"
+     "GGGGWWCWWWCWWGGGG"
+     "GGGWWCWCWCWCWWGGG"
+     "GGGWWWWWWWWWWWGGG"
+     "GGWWCWWWCWWWCWWGG"
+     ".GGCWCWCWCWCWCGG."
+     "..GGGG.....GGGG..")
+    (leaf
+     "........V........"
+     "....LLLLVLLLL...."
+     "..LLLLLLVLLLLLL.."
+     "...LLLLLLLLLLL..."
+     "...D.........D..."
+     "...GG.......GG..."
+     "...GGG.....GGG..."
+     "..GGGGGGGGGGGGG.."
+     "..GEEGGNNNGGEEG.."
+     ".GGEKGGGGGGGKEGG."
+     ".GGGGGGGGGGGGGGG."
+     "GGGGGWWWWWWWGGGGG"
+     "GGGGWWCWWWCWWGGGG"
+     "GGGWWCWCWCWCWWGGG"
+     "GGGWWWWWWWWWWWGGG"
+     "GGWWCWWWCWWWCWWGG"
+     ".GGCWCWCWCWCWCGG."
+     "..GGGG.....GGGG..")
+    (flap-up
+     "........V........"
+     "....LLLLVLLLL...."
+     "..LLLLLLVLLLLLL.."
+     "...LLLLLLLLLLL..."
+     "...D.........D..."
+     "...GG.......GG..."
+     "...GGG.....GGG..."
+     "..GGGGGGGGGGGGG.."
+     "..GEEGGNNNGGEEG.."
+     ".GGEKGGGGGGGKEGG."
+     ".GGGGGGGGGGGGGGG."
+     "GGGGGWWWWWWWGGGGG"
+     "GGGGWWCWWWCWWGGGG"
+     "GGGWWCWCWCWCWWGGG"
+     "GGGWWWWWWWWWWWGGG"
+     "GGWWCWWWCWWWCWWGG"
+     ".GGCWCWCWCWCWCGG."
+     "...GGGG...GGGG...")
+    (flap-down
+     ".........V......."
+     ".....LLLLVLLLL..."
+     "...LLLLLLVLLLLLL."
+     "....LLLLLLLLLLL.."
+     "...D.........D..."
+     "...GG.......GG..."
+     "...GGG.....GGG..."
+     "..GGGGGGGGGGGGG.."
+     "..GEEGGNNNGGEEG.."
+     ".GGEKGGGGGGGKEGG."
+     ".GGGGGGGGGGGGGGG."
+     "GGGGGWWWWWWWGGGGG"
+     "GGGGWWCWWWCWWGGGG"
+     "GGGWWCWCWCWCWWGGG"
+     "GGGWWWWWWWWWWWGGG"
+     "GGWWCWWWCWWWCWWGG"
+     ".GGCWCWCWCWCWCGG."
+     "...GGGG...GGGG...")))
+
 (defconst critters--species
   `((chicken
      :frames ,critters--chicken-frames
@@ -423,7 +708,69 @@ the list runs out."
      :walk (0.3 . 0.5) :walk-ticks (60 . 180) :step-ticks 8
      :edge-turn 60
      :actions ((idle . 3) (walk . 3) (tongue . 5) (bask . 2))
-     :poses ((tongue tongue 8 . 16) (bask blink 90 . 240))))
+     :poses ((tongue tongue 8 . 16) (bask blink 90 . 240)))
+    (spider
+     :frames ,critters--spider-frames
+     :palette ((?B . #xFF161618)        ; Abdomen.
+               (?S . #xFF60606C)        ; Shine.
+               (?H . #xFFD8202A)        ; Hourglass.
+               (?C . #xFF202024)        ; Head.
+               (?L . #xFF26262A))       ; Legs.
+     :outline #xFF5A5A5A
+     :jump 2 :walk (1.5 . 2.5) :walk-ticks (10 . 40) :step-ticks 2
+     :edge-turn 80
+     :actions ((idle . 3) (walk . 4) (jump . 2) (rear . 1))
+     :poses ((rear rear 20 . 50)))
+    (cockroach
+     :frames ,critters--cockroach-frames
+     :palette ((?B . #xFF7A4322)        ; Body.
+               (?S . #xFFA0683A)        ; Shine.
+               (?D . #xFF4E2A14)        ; Segment lines.
+               (?H . #xFF2E1A0E)        ; Head.
+               (?A . #xFF4E2A14)        ; Antennae.
+               (?L . #xFF5A3018))       ; Legs.
+     :walk (1.0 . 1.8) :walk-ticks (20 . 70) :step-ticks 3
+     :edge-turn 70
+     :actions ((idle . 3) (walk . 4) (hiss . 1))
+     :poses ((hiss hiss 15 . 40)))
+    (worm
+     :frames ,critters--worm-frames
+     :palette ((?R . #xFFB8404E)        ; Body.
+               (?D . #xFF8E2C3A)        ; Segment lines.
+               (?C . #xFFE08A8A))       ; Clitellum.
+     :walk (0.15 . 0.3) :walk-ticks (90 . 240) :step-ticks 10
+     :edge-turn 50
+     :actions ((idle . 3) (walk . 4) (curl . 1))
+     :poses ((curl curl 60 . 180)))
+    (isopod
+     :frames ,critters--isopod-frames
+     :palette ((?B . #xFF5E626B)        ; Body.
+               (?S . #xFF8A909B)        ; Back.
+               (?D . #xFF3C3F46)        ; Plate seams.
+               (?H . #xFF34363C)        ; Head.
+               (?A . #xFF4A4C52)        ; Antennae.
+               (?L . #xFF7A7E86))       ; Legs.
+     :walk (0.5 . 0.9) :walk-ticks (40 . 120) :step-ticks 5
+     :edge-turn 70
+     :actions ((idle . 3) (walk . 3) (roll . 1))
+     :poses ((roll roll 60 . 150)))
+    (totoro
+     :frames ,critters--totoro-frames
+     :palette ((?G . #xFF7D848C)        ; Fur.
+               (?D . #xFF4E545B)        ; Ear tips and closed eyes.
+               (?W . #xFFEEE6D0)        ; Belly.
+               (?C . #xFF7D848C)        ; Chevrons.
+               (?E . #xFFFFFFFF)        ; Eye whites.
+               (?K . #xFF111111)        ; Pupils.
+               (?N . #xFF2A2A2E)        ; Nose.
+               (?M . #xFF6A1E24)        ; Mouth.
+               (?T . #xFFFFFFFF)        ; Teeth.
+               (?L . #xFF4F9A3A)        ; Leaf.
+               (?V . #xFF2F6A22))       ; Leaf stem and vein.
+     :fly t :jump 5 :walk (0.6 . 1.2) :walk-ticks (30 . 90) :step-ticks 6
+     :edge-turn 85
+     :actions ((idle . 4) (walk . 3) (jump . 2) (roar . 1) (leaf . 1))
+     :poses ((roar roar 15 . 30) (leaf leaf 60 . 150))))
   "Species of critter, as (NAME . PLIST).
 PLIST has these properties:
 
@@ -1295,6 +1642,7 @@ See `critters-always-compile-module'."
 box around critters? ")))
     (critters-module-compile)))
 
+;;;###autoload
 (define-minor-mode critters-mode
   "Toggle critters that hop around the selected window."
   :global t
