@@ -105,6 +105,13 @@ means they never roost."
 They always pause while it is minimized or hidden."
   :type 'boolean)
 
+(defcustom critters-web-delay 60
+  "Seconds of animation before a spider spins a web.
+The web appears in an empty spot under some text and stays until
+the text moves.  Webs need the shape module, see
+`critters-module-compile'."
+  :type 'number)
+
 (defcustom critters-always-compile-module nil
   "Non-nil means build the shape module without asking.
 When `critters-mode' is enabled on X11 and the module isn't loaded,
@@ -718,8 +725,8 @@ the list runs out."
                (?L . #xFF26262A))       ; Legs.
      :outline #xFF5A5A5A
      :jump 2 :walk (1.5 . 2.5) :walk-ticks (10 . 40) :step-ticks 2
-     :edge-turn 80
-     :actions ((idle . 3) (walk . 4) (jump . 2) (rear . 1))
+     :edge-turn 80 :web t
+     :actions ((idle . 3) (walk . 4) (jump . 2) (rear . 1) (web . 1))
      :poses ((rear rear 20 . 50)))
     (cockroach
      :frames ,critters--cockroach-frames
@@ -789,13 +796,51 @@ PLIST has these properties:
  :walk-ticks  Range (MIN . MAX) of how long a walk lasts.
  :step-ticks  Ticks per step of the walking animation.
  :edge-turn   Percent chance of turning around at the end of text.
- :actions     Alist of (ACTION . WEIGHT): `idle', `walk', `jump', or
-              a pose.
+ :web         Non-nil to spin a web now and then, see
+              `critters-web-delay'.
+ :actions     Alist of (ACTION . WEIGHT): `idle', `walk', `jump',
+              `web' (go back to its web), or a pose.
  :poses       List of (ACTION FRAME MIN . MAX): standing still showing
               FRAME for MIN to MAX ticks.")
 
 (defconst critters--outline #xFF3A2A1A
   "Default ARGB color of the outline drawn around sprites.")
+
+(defconst critters--web-rows
+  '(".............S............."
+    ".............S............."
+    "............SS............."
+    "..........SS.SSS..........."
+    "........SS...S..SS........."
+    "......SS.....S....SS......."
+    ".....S......SSS.....SS....."
+    ".....SS..SSS.S.SSS..S.S...."
+    "....S..SS....S....SS..S...."
+    "....S..SS....S....SS...S..."
+    "...S..S..S..SSS..S..S..S..."
+    "...S..S...SS.S.SS...S...S.."
+    "..S...S...SS.S.SS...S...S.."
+    "..S..S...S..SSS..S...S...S."
+    ".SSSSSSSSSSSSSSSSSSSSSSSSS."
+    ".S...S...S..SSS..S...S..S.."
+    "..S...S...SS.S.SS...S...S.."
+    "..S...S...SS.S.SS...S..S..."
+    "...S..S..S..SSS..S..S..S..."
+    "...S...SS....S....SS..S...."
+    "....S..SS....S....SS..S...."
+    "....S.S..SSS.S.SSS..SS....."
+    ".....SS.....SSS......S....."
+    ".......SS....S.....SS......"
+    ".........SS..S...SS........"
+    "...........SSS.SS..........")
+  "Sprite of a spider's web, `S' being silk and `.' transparent.
+The top row hangs from the bottom of a line of text.")
+
+(defconst critters--web-hub '(13 . 14)
+  "Sprite pixel (X . Y) of the middle of `critters--web-rows'.")
+
+(defconst critters--web-color #xFF8C8C8C
+  "ARGB color of spider silk.")
 
 ;;;; Sprites
 
@@ -921,11 +966,21 @@ the horizontal center of the critter and Y is the bottom of its feet."
   (phase 0)                             ; Animation offset in ticks.
   (x 0.0) (y 0.0) (vx 0.0) (vy 0.0)
   (facing 1)
-  (state 'air)                          ; `ground' or `air'.
+  (state 'air)                          ; `ground', `air' or `web'.
   (action 'idle)                        ; `idle', `walk' or a pose.
   (action-ticks 0)                      ; Ticks left in the action.
   flapping
-  target)                               ; Point (X . Y) jumping to, or nil.
+  target                                ; Point (X . Y) jumping to, or nil.
+  web                                   ; Its `critters--web', or nil.
+  (web-time 0.0)                        ; Seconds out without a web.
+  web-going)                            ; Non-nil while heading to its web.
+
+(cl-defstruct (critters--web (:constructor critters--web-create)
+                             (:copier nil))
+  "A spider's web."
+  display                     ; A `critters--pet' that only shows the web.
+  key                         ; `critters--surfaces-key' when it was spun.
+  surface)                    ; Surface (Y X1 X2 web) to land in it.
 
 (defun critters--pet-get (pet prop)
   "Return the species property PROP of PET."
@@ -987,17 +1042,14 @@ characters CW pixels wide."
                   runs)))))
     (nreverse runs)))
 
-(defun critters--compute-surfaces (window)
-  "Return a list of surfaces (Y X1 X2) for the text visible in WINDOW.
-A surface is the top edge of a run of non-blank text with nothing
-directly above it, low enough for the tallest critter to fit under
-the top of the window.  The bottom of the window is always a
-surface, marked as (Y X1 X2 floor).  It spans every X so a critter
-can't miss it.
+(defun critters--visible-lines (window)
+  "Return the visual lines of the text visible in WINDOW.
+Each is (Y RUNS), Y being the top of the line in pixels and RUNS the
+pixel ranges of its non-blank text, see `critters--line-runs'.
 
 `posn-at-point' is slow, so it is only used once to find where
 lines start horizontally.  The top of each line is read from the
-glyph matrix with `window-line-height'.  Return nil if the glyph
+glyph matrix with `window-line-height'.  Return `stale' if the glyph
 matrix is not up to date."
   ;; Read the line positions first: moving around the buffer (with
   ;; font lock) makes `window-line-height' consider the glyph matrix
@@ -1006,7 +1058,8 @@ matrix is not up to date."
   (let ((ys (cl-loop for row below (window-body-height window)
                      for h = (window-line-height row window)
                      while h collect (nth 2 h))))
-    (when ys
+    (if (not ys)
+        'stale
       (with-current-buffer (window-buffer window)
         (save-excursion
           (goto-char (window-start window))
@@ -1014,21 +1067,35 @@ matrix is not up to date."
                  (x0 (if posn (car (posn-x-y posn)) 0))
                  (cw (window-font-width window))
                  (end (window-end window))
-                 (above nil)
-                 (surfaces (list (list (window-body-height window t)
-                                       -1.0e+INF 1.0e+INF 'floor))))
+                 (lines nil))
             (while (and (< (point) end) ys)
               (let* ((y (pop ys))
                      (beg (point))
-                     (next (progn (vertical-motion 1 window) (point)))
-                     (runs (critters--line-runs beg (min next end) x0 cw)))
-                (when (>= y critters--top)
-                  (dolist (r (critters--subtract runs above))
-                    (push (list y (car r) (cdr r)) surfaces)))
-                (setq above runs)
+                     (next (progn (vertical-motion 1 window) (point))))
+                (push (list y (critters--line-runs beg (min next end) x0 cw))
+                      lines)
                 (when (<= next beg)
                   (goto-char end))))
-            surfaces))))))
+            (nreverse lines)))))))
+
+(defun critters--compute-surfaces (window)
+  "Return a list of surfaces (Y X1 X2) for the text visible in WINDOW.
+A surface is the top edge of a run of non-blank text with nothing
+directly above it, low enough for the tallest critter to fit under
+the top of the window.  The bottom of the window is always a
+surface, marked as (Y X1 X2 floor).  It spans every X so a critter
+can't miss it.  Return nil if the glyph matrix is not up to date."
+  (let ((lines (critters--visible-lines window)))
+    (unless (eq lines 'stale)
+      (let ((above nil)
+            (surfaces (list (list (window-body-height window t)
+                                  -1.0e+INF 1.0e+INF 'floor))))
+        (pcase-dolist (`(,y ,runs) lines)
+          (when (>= y critters--top)
+            (dolist (r (critters--subtract runs above))
+              (push (list y (car r) (cdr r)) surfaces)))
+          (setq above runs))
+        surfaces))))
 
 (defun critters--surfaces (window)
   "Return the surfaces of WINDOW, recomputing them only when needed."
@@ -1118,10 +1185,10 @@ Put it on the bottom of the window if there is no text, or if
           (critters--pet-state pet) 'ground)
     (critters--set-action pet 'idle (random 20))))
 
-(defun critters--jump (pet surfaces)
+(defun critters--jump (pet surfaces &optional target)
   "Make PET jump towards a random text surface in SURFACES within reach.
 If none is within reach, flying critters fly to the nearest one and
-others hop in place."
+others hop in place.  If TARGET is non-nil, jump to that surface."
   (let* ((lh (frame-char-height critters--parent))
          (lines (or (critters--pet-get pet :jump) 1))
          (fly (critters--pet-get pet :fly))
@@ -1136,7 +1203,8 @@ others hop in place."
                              (<= (abs (- y (nth 0 s))) max-up)
                              (< (- (nth 1 s) max-dx) x (+ (nth 2 s) max-dx))))
                       text))
-         (target (cond (candidates (nth (random (length candidates)) candidates))
+         (target (cond (target)
+                       (candidates (nth (random (length candidates)) candidates))
                        (fly (critters--nearest text x y))))
          (ty (if target (nth 0 target) y))
          (tx (if target
@@ -1209,8 +1277,10 @@ errors in the arc get corrected along the way."
           ('jump
            (critters--set-action pet 'idle (+ 10 (random 20)))
            (critters--jump pet surfaces))
-          ('idle
+          ((or 'idle (and 'web (guard (not (critters--pet-web pet)))))
            (critters--set-action pet 'idle (+ 15 (random 45))))
+          ('web
+           (critters--go-to-web pet surfaces))
           (_
            (let ((pose (alist-get action (critters--pet-get pet :poses))))
              (critters--set-action pet action
@@ -1271,7 +1341,158 @@ errors in the arc get corrected along the way."
                 (critters--pet-vy pet) 0.0
                 (critters--pet-state pet) 'ground
                 (critters--pet-flapping pet) nil)
-          (critters--set-action pet 'idle (random 20)))))))
+          (if (critters--in-web-p pet)
+              (critters--sit-in-web pet)
+            (setf (critters--pet-web-going pet) nil)
+            (critters--set-action pet 'idle (random 20))))))))
+
+;;;; Webs
+
+(defun critters--pet-surfaces (pet surfaces)
+  "Return SURFACES, plus the middle of PET's web while it heads there."
+  (let ((web (critters--pet-web pet)))
+    (if (and web (critters--pet-web-going pet))
+        (cons (critters--web-surface web) surfaces)
+      surfaces)))
+
+(defun critters--in-web-p (pet)
+  "Return non-nil if PET, heading to its web, is in the middle of it."
+  (let ((web (critters--pet-web pet)))
+    (and web
+         (critters--pet-web-going pet)
+         (critters--surface-at (list (critters--web-surface web))
+                               (critters--pet-x pet) (critters--pet-y pet)))))
+
+(defun critters--go-to-web (pet surfaces)
+  "Make PET on SURFACES jump into its web."
+  (setf (critters--pet-web-going pet) t)
+  (critters--set-action pet 'idle (+ 10 (random 20)))
+  (critters--jump pet surfaces (critters--web-surface (critters--pet-web pet))))
+
+(defun critters--sit-in-web (pet)
+  "Settle PET in the middle of its web for a while."
+  (let ((s (critters--web-surface (critters--pet-web pet))))
+    (setf (critters--pet-x pet) (/ (+ (nth 1 s) (nth 2 s)) 2.0)
+          (critters--pet-state pet) 'web)
+    (critters--set-action pet 'web (+ 150 (random 300)))))
+
+(defun critters--web-step (pet)
+  "Advance PET sitting in its web one tick.
+When it's done, or the web is gone, it drops onto whatever is below."
+  (when (or (not (critters--pet-web pet))
+            (<= (cl-decf (critters--pet-action-ticks pet)) 0))
+    (setf (critters--pet-state pet) 'air
+          (critters--pet-vy pet) 0.0
+          (critters--pet-web-going pet) nil)))
+
+(defun critters--web-spot-empty-p (lines x w y)
+  "Return non-nil if none of LINES starting above Y have text in X to X+W.
+LINES are from `critters--visible-lines'."
+  (cl-loop for (ly runs) in lines
+           while (< ly y)
+           never (cl-some (lambda (r) (and (< (car r) (+ x w)) (> (cdr r) x)))
+                          runs)))
+
+(defun critters--find-web-spot (window pet)
+  "Return the top left (X . Y) of an empty spot for a web in WINDOW.
+The web hangs from the bottom of some text, with no text in the way.
+Of all the spots, return the one nearest PET, or nil if there are
+none."
+  (let ((lines (critters--visible-lines window)))
+    (unless (eq lines 'stale)
+      (let ((w (* critters-scale (length (car critters--web-rows))))
+            (h (* critters-scale (length critters--web-rows)))
+            (cw (window-font-width window))
+            (width (window-body-width window t))
+            (height (window-body-height window t))
+            best best-d)
+        (cl-loop
+         for ((y runs) . rest) on lines
+         for top = (if rest (caar rest) (+ y (frame-char-height critters--parent)))
+         when (<= (+ top h) height) do
+         (dolist (run runs)
+           (cl-loop for cx from (car run) below (cdr run) by cw
+                    for x = (- cx (/ w 2))
+                    for d = (+ (expt (- cx (critters--pet-x pet)) 2)
+                               (expt (- top (critters--pet-y pet)) 2))
+                    when (and (>= x 0) (<= (+ x w) width)
+                              (or (null best-d) (< d best-d))
+                              (critters--web-spot-empty-p rest x w (+ top h)))
+                    do (setq best (cons x top)
+                             best-d d))))
+        best))))
+
+(defun critters--spin-web (pet surfaces)
+  "Spin a web for PET on SURFACES in an empty spot, and go to it.
+Do nothing if there's no room for one."
+  (let ((spot (critters--find-web-spot critters--window pet)))
+    (when spot
+      (let* ((s critters-scale)
+             (cols (length (car critters--web-rows)))
+             (pixels (critters--compile critters--web-rows
+                                        `((?S . ,critters--web-color))
+                                        nil))
+             (display (critters--pet-create
+                       :w (* s cols)
+                       :h (* s (length critters--web-rows))))
+             (hub-x (+ (car spot) (* s (car critters--web-hub))))
+             (hub-y (+ (cdr spot) (* s (cdr critters--web-hub))))
+             (edges (window-inside-pixel-edges critters--window)))
+        (critters--make-frame display
+                              (format "web-%d" (cl-position pet critters--pets)))
+        (let ((image (critters--pet-image display))
+              (frame (critters--pet-frame display)))
+          (plist-put (cdr image) :data
+                     (critters--canvas-data pixels cols critters--bg))
+          (canvas-refresh image 'reload-data)
+          (critters-shape-set (frame-parameter frame 'display)
+                              (critters--pet-xid display)
+                              (critters--shape-rects pixels cols))
+          (set-frame-position frame
+                              (+ (nth 0 edges) (car spot))
+                              (+ (nth 1 edges) (cdr spot)))
+          (make-frame-visible frame))
+        ;; Keep the spider in front of its web.
+        (raise-frame (critters--pet-frame pet))
+        (setf (critters--pet-web pet)
+              (critters--web-create
+               :display display
+               :key critters--surfaces-key
+               ;; Centered on the hub, with some slack to land in it.
+               :surface (list (+ hub-y (/ (critters--pet-h pet) 2))
+                              (- hub-x 6) (+ hub-x 6) 'web)))
+        (critters--go-to-web pet surfaces)))))
+
+(defun critters--remove-web (pet)
+  "Take down PET's web."
+  (let ((display (critters--web-display (critters--pet-web pet))))
+    (when (frame-live-p (critters--pet-frame display))
+      (delete-frame (critters--pet-frame display)))
+    (when (buffer-live-p (critters--pet-buffer display))
+      (kill-buffer (critters--pet-buffer display))))
+  (setf (critters--pet-web pet) nil
+        (critters--pet-web-going pet) nil
+        (critters--pet-web-time pet) 0.0))
+
+(defun critters--tend-web (pet surfaces seconds)
+  "Look after the web of PET on SURFACES, SECONDS of animation later.
+Take it down once the text it hangs from moves.  Spin one when PET
+has been without for `critters-web-delay' seconds, if it can."
+  (let ((web (critters--pet-web pet)))
+    (cond
+     (web
+      (unless (eq (critters--web-key web) critters--surfaces-key)
+        (critters--remove-web pet)))
+     ((and (critters--pet-get pet :web)
+           (featurep 'critters-shape)
+           (not (critters--bottom-p))
+           (not critters--roosting)
+           (eq (critters--pet-state pet) 'ground)
+           (>= (cl-incf (critters--pet-web-time pet) seconds)
+               critters-web-delay))
+      ;; If there's no room, try again after another delay.
+      (setf (critters--pet-web-time pet) 0.0)
+      (critters--spin-web pet surfaces)))))
 
 ;;;; Rendering
 
@@ -1342,9 +1563,10 @@ EDGES are the `window-inside-pixel-edges' of the critters' window."
 (defun critters--step-pet (pet surfaces width)
   "Advance PET one tick on SURFACES in a window WIDTH pixels wide."
   (let ((half (/ (critters--pet-w pet) 2)))
-    (if (eq (critters--pet-state pet) 'ground)
-        (critters--ground-step pet surfaces)
-      (critters--air-step pet surfaces))
+    (pcase (critters--pet-state pet)
+      ('ground (critters--ground-step pet surfaces))
+      ('air (critters--air-step pet surfaces))
+      ('web (critters--web-step pet)))
     ;; Bounce off the sides of the window.
     (when (or (< (critters--pet-x pet) half)
               (> (critters--pet-x pet) (- width half)))
@@ -1371,10 +1593,12 @@ EDGES are the `window-inside-pixel-edges' of the critters' window."
         (when (> (critters--pet-y pet) floor)
           (setf (critters--pet-y pet) (float floor)
                 (critters--pet-vy pet) 0.0)))
+      (dolist (pet critters--active)
+        (critters--tend-web pet surfaces (/ ticks critters--rate)))
       (dotimes (_ ticks)
         (cl-incf critters--ticks)
         (dolist (pet critters--active)
-          (critters--step-pet pet surfaces width)))
+          (critters--step-pet pet (critters--pet-surfaces pet surfaces) width)))
       (dolist (pet critters--active)
         (critters--render pet edges)))))
 
@@ -1389,6 +1613,8 @@ queue, and the one at the front comes out on a random bit of text."
     (let ((leaving (pop critters--active))
           (coming (pop critters--queue)))
       (make-frame-invisible (critters--pet-frame leaving))
+      (when (critters--pet-web leaving)
+        (critters--remove-web leaving))
       (setq critters--queue (append critters--queue (list leaving)))
       (critters--drop-in coming)
       (critters--render coming (window-inside-pixel-edges critters--window))
@@ -1398,7 +1624,7 @@ queue, and the one at the front comes out on a random bit of text."
 (defun critters--calm-p ()
   "Return non-nil if every critter is standing still."
   (cl-every (lambda (pet)
-              (and (eq (critters--pet-state pet) 'ground)
+              (and (memq (critters--pet-state pet) '(ground web))
                    (not (eq (critters--pet-action pet) 'walk))))
             critters--active))
 
@@ -1472,14 +1698,15 @@ settled down to roost, or on errors."
     pet))
 
 (defun critters--make-frame (pet n)
-  "Create the child frame showing critter PET, which is number N."
+  "Create the child frame showing critter PET.
+N is a number or name, unique to PET."
   (let* ((w (critters--pet-w pet))
          (h (critters--pet-h pet))
          (bg-color (frame-parameter critters--parent 'background-color))
-         (buf (get-buffer-create (format " *critters-%d*" n)))
+         (buf (get-buffer-create (format " *critters-%s*" n)))
          (image (create-image (make-vector (* w h) critters--bg)
                               'canvas t
-                              :id (intern (format "critters-%d" n))
+                              :id (intern (format "critters-%s" n))
                               :data-width w
                               :data-height h
                               :scale 1))
@@ -1606,6 +1833,8 @@ settled down to roost, or on errors."
   (when (timerp critters--idle-timer)
     (cancel-timer critters--idle-timer))
   (dolist (pet critters--pets)
+    (when (critters--pet-web pet)
+      (critters--remove-web pet))
     (when (frame-live-p (critters--pet-frame pet))
       (delete-frame (critters--pet-frame pet)))
     (when (buffer-live-p (critters--pet-buffer pet))
