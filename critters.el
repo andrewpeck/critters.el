@@ -79,6 +79,13 @@ variety while computing fewer critters.  Takes effect when
 Only time spent animating counts, not time spent typing."
   :type 'number)
 
+(defcustom critters-shuffle-randomize nil
+  "Non-nil means `critters-shuffle' takes turns in a random order.
+A random part of the flock comes out first, and at each turn a
+random one of those waiting comes out, instead of going in the
+order of `critters-flock'."
+  :type 'boolean)
+
 (defcustom critters-scale 2
   "Size in screen pixels of one sprite pixel."
   :type 'natnum)
@@ -1461,6 +1468,13 @@ can't miss it.  Return nil if the glyph matrix is not up to date."
       (+ (car range) (* (- (cdr range) (car range)) (/ (random 1000) 1000.0)))
     (+ (car range) (random (1+ (- (cdr range) (car range)))))))
 
+(defun critters--shuffled (list)
+  "Return a copy of LIST in a random order."
+  (let ((v (vconcat list)))
+    (cl-loop for i from (1- (length v)) downto 1
+             do (cl-rotatef (aref v i) (aref v (random (1+ i)))))
+    (append v nil)))
+
 (defun critters--weighted (choices)
   "Return the car of a random element of CHOICES, an alist of (ITEM . WEIGHT)."
   (let ((r (random (apply #'+ (mapcar #'cdr choices)))))
@@ -1911,13 +1925,18 @@ EDGES are the `window-inside-pixel-edges' of the critters' window."
 (defun critters--shuffle (seconds)
   "Count SECONDS of animation towards the next turn, and take it if due.
 The critter that has been out the longest goes to the back of the
-queue, and the one at the front comes out on a random bit of text."
+queue, and the one at the front comes out on a random bit of text.
+With `critters-shuffle-randomize' a random one from the queue comes
+out instead."
   (when (and critters--queue
              (>= (cl-incf critters--shuffle-time seconds)
                  critters-shuffle-interval))
     (setq critters--shuffle-time 0.0)
     (let ((leaving (pop critters--active))
-          (coming (pop critters--queue)))
+          (coming (if critters-shuffle-randomize
+                      (seq-random-elt critters--queue)
+                    (car critters--queue))))
+      (setq critters--queue (delq coming critters--queue))
       (make-frame-invisible (critters--pet-frame leaving))
       (when (critters--pet-web leaving)
         (critters--remove-web leaving))
@@ -2124,9 +2143,12 @@ N is a number or name, unique to PET."
                                   do (cl-incf n)))))
   (let ((out (if critters-shuffle
                  (min critters-shuffle-count (length critters--pets))
-               (length critters--pets))))
-    (setq critters--active (seq-take critters--pets out)
-          critters--queue (seq-drop critters--pets out)
+               (length critters--pets)))
+        (order (if critters-shuffle-randomize
+                   (critters--shuffled critters--pets)
+                 critters--pets)))
+    (setq critters--active (seq-take order out)
+          critters--queue (seq-drop order out)
           critters--shuffle-time 0.0))
   (setq critters--top (apply #'max 0 (mapcar #'critters--pet-h critters--pets))
         critters--idle-timer
